@@ -15,7 +15,7 @@ from collections import defaultdict
 import random
 import ast
 
-path = "../dataset/"
+path = "C:/Users/Zhiyi/Desktop/NLC/project/tod-bert-finetuning/MMConv/multiple tasks/dataset/"
 with open(path + "dialogues.json") as f:
         dialogues = json.load(f)
         
@@ -309,6 +309,11 @@ def make_sample(dialogue,
         if ctx:
             ret.append(ctx)
         ret.append(ectx_token)
+        dialogue_history = make_dialogue_history(dialogue, (turn_idx - history_length) if history_length > -1 else 0, turn_idx, with_images=with_images)
+        ret.append(",\"dialog_history\":")
+        ret.append("[")
+        ret.append(dialogue_history)
+        ret.append("]")
 
     if with_belief:
         ret.append(bst_token)
@@ -510,6 +515,34 @@ def make_context(dialogue, current_turn, reverse=False, roles=('agent', 'user'),
                     
     return clean(' '.join(ctx).replace('\n', ' '))
 
+
+def make_dialogue_history(dialogue, lower, upper, reverse=False, roles=('agent', 'user'), with_images=True, delex=False):
+    # Start from the current turn only, no previous dialogue
+    r = range(max(0, lower), min(len(dialogue['dialogue']), upper))
+    if reverse:
+        r = reverse(r)
+    ctx = []
+    for i in r:
+        for role in roles:
+            role_token = role2token[role]
+            if delex:
+                transcript = do_delex(dialogue, i, role=role, exclude_slots={'open span', 'img_gts', 'openspan', 'open psan', 'opne span', 'open open', 'opan span', 'open sapn', 'delivery', 'open span:', 'oprn span', 'openn span', 'open spicy', 'opens span', 'open spam', 'oepn span'})
+            else:
+                transcript = dialogue['dialogue'][i][role]['transcript']
+            images = ''
+            image_sources = ''
+            if with_images:
+                turn_label = dialogue['dialogue'][i][role][turn_label_key.get(role, 'slot-action-mapping')]
+                for slot, act in turn_label.items():
+                    name, value = extract_slot(slot)
+                    if name in wrong_slots:
+                        continue
+            if transcript or images:
+                if transcript:
+                    transcript = transcript.replace("\"", '\'')
+                    ctx.append(quote + transcript + quote)
+
+    return clean(', '.join(ctx).replace('\n', ' '))
 
 # In[15]:
 

@@ -1,0 +1,5 @@
+10-23 23:03 root         INFO     Running Random Seed: 10
+10-23 23:03 urllib3.connectionpool DEBUG    https://huggingface.co:443 "HEAD /TODBERT/TOD-BERT-JNT-V1/resolve/main/config.json HTTP/11" 200 0
+10-23 23:03 urllib3.connectionpool DEBUG    https://huggingface.co:443 "HEAD /TODBERT/TOD-BERT-JNT-V1/resolve/main/config.json HTTP/11" 200 0
+10-23 23:03 urllib3.connectionpool DEBUG    https://huggingface.co:443 "HEAD /TODBERT/TOD-BERT-JNT-V1/resolve/main/model.safetensors HTTP/11" 404 0
+10-23 23:03 root         INFO     Epoch:1

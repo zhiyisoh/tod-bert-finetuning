@@ -7,7 +7,7 @@ from utils_function import to_cuda, merge, merge_multi_response, merge_sent_and_
 
 class Dataset_dst(torch.utils.data.Dataset):
     """Custom data.Dataset compatible with data.DataLoader."""
-    def __init__(self, data_info, tokenizer, args, unified_meta, max_length=512):
+    def __init__(self, data_info, tokenizer, args, unified_meta, mode, max_length=512):
         """Reads source and target sequences from txt files."""
         self.data = data_info
         self.tokenizer = tokenizer
@@ -18,24 +18,24 @@ class Dataset_dst(torch.utils.data.Dataset):
         self.args = args
         self.unified_meta = unified_meta
         self.slots = list([
-            "menus",
             "music",
-            "reservations",
-            "venueneigh",
-            "smoking",
-            "dining options",
+            "telephone",
+            "venueaddress",
             "venuescore",
+            "wi-fi",
+            "smoking",
+            "restroom",
+            "parking",
+            "outdoor seating",
+            "reservations",
+            "drinks",
+            "menus",
+            "venueneigh",
+            "wheelchair accessible",
             "price",
             "credit cards",
             "venuename",
-            "telephone",
-            "wi-fi",
-            "restroom",
-            "outdoor seating",
-            "drinks",
-            "wheelchair accessible",
-            "parking",
-            "venueaddress"
+            "dining options"
         ])
         self.mask_token_idx = tokenizer.convert_tokens_to_ids("[MASK]")
         self.sep_token_idx = tokenizer.convert_tokens_to_ids("[SEP]")
@@ -50,8 +50,8 @@ class Dataset_dst(torch.utils.data.Dataset):
             dialog_history_str = self.get_concat_context(self.data["dialog_history"][index])
             gate_label = self.data["slot_gate"][index]
             context_plain = self.concat_dh_sys_usr(dialog_history_str, 
-                                                   self.data["turn_sys"][index], 
-                                                   self.data["turn_usr"][index])
+                                                    self.data["turn_sys"][index], 
+                                                    self.data["turn_usr"][index])
             slot_values_plain = self.data["slot_values"][index]
             slot_values = self.preprocess_slot(slot_values_plain)
             
@@ -66,15 +66,18 @@ class Dataset_dst(torch.utils.data.Dataset):
             context = self.preprocess(context_plain)
             
             ontology_idx = []
+            num_iter = 0
             for si, sv in enumerate(slot_values_plain):
+                num_iter +=1
                 try:
                     ontology_idx.append(self.unified_meta["slots"][self.slots[si]][sv])
                 except Exception as e:
-                    print("Not In Ontology")
-                    print(e)
-                    print(self.slots[si], sv)
+                    # print("Not In Ontology")
+                    # print(e)
+                    # print(self.slots[si], sv)
                     ontology_idx.append(-1)
-            
+            # print(ontology_idx)
+            # print(num_iter)
         elif self.args["example_type"] == "dial":
             raise NotImplemented()
 

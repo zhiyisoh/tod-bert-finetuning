@@ -41,3 +41,5 @@ extra_keys_to_add = [
     'usr_act', 'intent', 'turn_slot'
 ]  # List of keys to add
 add_keys_to_json('train.json', 'train_final.json', extra_keys_to_add)
+add_keys_to_json('test.json', 'test_final.json', extra_keys_to_add)
+add_keys_to_json('val.json', 'val_final.json', extra_keys_to_add)

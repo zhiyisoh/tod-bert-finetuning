@@ -1,5 +1,55 @@
-10-23 23:03 root         INFO     Running Random Seed: 10
-10-23 23:03 urllib3.connectionpool DEBUG    https://huggingface.co:443 "HEAD /TODBERT/TOD-BERT-JNT-V1/resolve/main/config.json HTTP/11" 200 0
-10-23 23:03 urllib3.connectionpool DEBUG    https://huggingface.co:443 "HEAD /TODBERT/TOD-BERT-JNT-V1/resolve/main/config.json HTTP/11" 200 0
-10-23 23:03 urllib3.connectionpool DEBUG    https://huggingface.co:443 "HEAD /TODBERT/TOD-BERT-JNT-V1/resolve/main/model.safetensors HTTP/11" 404 0
-10-23 23:03 root         INFO     Epoch:1
+10-25 19:52 root         INFO     Running Random Seed: 10
+10-25 19:52 urllib3.connectionpool DEBUG    https://huggingface.co:443 "HEAD /bert-base-uncased/resolve/main/config.json HTTP/11" 200 0
+10-25 19:52 urllib3.connectionpool DEBUG    https://huggingface.co:443 "HEAD /bert-base-uncased/resolve/main/config.json HTTP/11" 200 0
+10-25 19:52 urllib3.connectionpool DEBUG    https://huggingface.co:443 "HEAD /bert-base-uncased/resolve/main/config.json HTTP/11" 200 0
+10-25 19:52 urllib3.connectionpool DEBUG    https://huggingface.co:443 "HEAD /bert-base-uncased/resolve/main/config.json HTTP/11" 200 0
+10-25 19:54 root         INFO     Epoch:1
+10-25 19:54 root         INFO     Epoch:2
+10-25 19:54 root         INFO     Epoch:3
+10-25 19:54 root         INFO     Epoch:4
+10-25 19:54 root         INFO     Epoch:5
+10-25 19:54 root         INFO     Epoch:6
+10-25 19:54 root         INFO     Epoch:7
+10-25 19:54 root         INFO     Epoch:8
+10-25 19:54 root         INFO     Epoch:9
+10-25 19:54 root         INFO     Epoch:10
+10-25 19:54 root         INFO     Epoch:11
+10-25 19:54 root         INFO     Epoch:12
+10-25 19:54 root         INFO     Epoch:13
+10-25 19:54 root         INFO     Epoch:14
+10-25 19:54 root         INFO     Epoch:15
+10-25 19:54 root         INFO     Epoch:16
+10-25 19:54 root         INFO     Epoch:17
+10-25 19:54 root         INFO     Epoch:18
+10-25 19:55 root         INFO     Epoch:19
+10-25 19:55 root         INFO     Epoch:20
+10-25 19:55 root         INFO     Epoch:21
+10-25 19:55 root         INFO     Epoch:22
+10-25 19:55 root         INFO     Epoch:23
+10-25 19:55 root         INFO     Epoch:24
+10-25 19:55 root         INFO     Epoch:25
+10-25 19:55 root         INFO     Epoch:26
+10-25 19:55 root         INFO     Epoch:27
+10-25 19:55 root         INFO     Epoch:28
+10-25 19:55 root         INFO     Epoch:29
+10-25 19:55 root         INFO     Epoch:30
+10-25 19:55 root         INFO     Epoch:31
+10-25 19:55 root         INFO     Epoch:32
+10-25 19:55 root         INFO     Epoch:33
+10-25 19:55 root         INFO     Epoch:34
+10-25 19:55 root         INFO     Epoch:35
+10-25 19:55 root         INFO     Epoch:36
+10-25 19:55 root         INFO     Epoch:37
+10-25 19:55 root         INFO     Epoch:38
+10-25 19:55 root         INFO     Epoch:39
+10-25 19:55 root         INFO     Epoch:40
+10-25 19:55 root         INFO     Epoch:41
+10-25 19:55 root         INFO     Epoch:42
+10-25 19:55 root         INFO     Epoch:43
+10-25 19:55 root         INFO     Epoch:44
+10-25 19:55 root         INFO     Epoch:45
+10-25 19:55 root         INFO     Epoch:46
+10-25 19:55 root         INFO     Epoch:47
+10-25 19:55 root         INFO     Epoch:48
+10-25 19:55 root         INFO     Epoch:49
+10-25 19:55 root         INFO     Epoch:50

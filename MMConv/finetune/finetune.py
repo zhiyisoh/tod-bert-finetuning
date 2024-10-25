@@ -1,22 +1,20 @@
 import json
 import torch
-import logging
 import ast
 import glob
 import os
 import numpy as np
 import copy
 from torch.utils.data import Dataset, DataLoader
-from transformers import AutoTokenizer, AutoModel, AdamW, Trainer, TrainingArguments, BertForSequenceClassification
+from transformers import *
 import dataloader_dst
-from peft import LoraConfig, get_peft_model
 import utils_general
 from tqdm import tqdm
 from models.multi_label_classifier import *
 from models.multi_class_classifier import *
 from models.BERT_DST_Picklist import *
 from models.dual_encoder_ranking import *
-
+import logging as lg
 try:
     from torch.utils.tensorboard import SummaryWriter
 except ImportError:
@@ -34,28 +32,87 @@ MODELS = {"bert": (BertModel,       BertTokenizer,       BertConfig),
 
 SEEDS = [10, 5, 0]
 args = {
-    "model_type": "todbert",         # Specify the model type (e.g., "bert", "gpt")
-    "my_model" : "BeliefTracker",
-    "usr_token": "[USR]",         # Token to represent user turns
-    "sys_token": "[SYS]",         # Token to represent system responses
-    "example_type": "turn",       # Specify example type (e.g., "turn" or "dial")
-    "task" : "dst",
-    "task_name" : "dst",
-    "batch_size" : 8, 
-    "train_data_ratio": 0.05, 
-    "dataset" : "MMConv",
-    "rand_seed": 111,
-    "max_seq_length" : 256,
-    "do_train" : 1,
-    "output_dir" : "C:/Users/Zhiyi/Desktop/NLC/project/tod-bert-finetuning/MMConv/finetune/save",
-    "nb_runs" : 1,
-    "fix_rand_seed" : "store_true",
-    "eval_batch_size" : 100,
-    "epoch" : 50,
-    "eval_by_step":4000,
-    "model_name_or_path":"bert-base-uncased",
-    "cache_dir": ""
+    'model_type': 'todbert',
+    'my_model': 'BeliefTracker',
+    'usr_token': '[USR]',
+    'sys_token': '[SYS]',
+    'example_type': 'turn',
+    'task': 'dst',
+    'task_name': 'dst',
+    'batch_size': 8,
+    'train_data_ratio': 0.05,
+    'dataset': 'MMConv',
+    'rand_seed': 111,
+    'max_seq_length': 256,
+    'do_train': 1,
+    'output_dir': 'C:/Users/Zhiyi/Desktop/NLC/project/tod-bert-finetuning/MMConv/finetune/save',
+    'nb_runs': 1,
+    'fix_rand_seed': 'store_true',
+    'eval_batch_size': 100,
+    'epoch': 50,
+    'eval_by_step': 4000,
+    'model_name_or_path': 'bert-base-uncased',
+    'cache_dir': '',
+    'n_gpu': 1,
+    'patience': 10,
+    'earlystop': 'joint_acc',
+    'dropout': 0.2,
+    'learning_rate': 5e-05,
+    'hdd_size': 400,
+    'emb_size': 400,
+    'grad_clip': 1,
+    'teacher_forcing_ratio': 0.5,
+    'load_embedding': False,
+    'fix_embedding': False,
+    'fix_encoder': False,
+    'warmup_proportion': 0.1,
+    'local_rank': -1,
+    'gradient_accumulation_steps': 1,
+    'weight_decay': 0.0,
+    'adam_epsilon': 1e-08,
+    'warmup_steps': 0,
+    'fp16': False,
+    'fp16_opt_level': 'O1',
+    'output_mode': 'classification',
+    'max_steps': -1,
+    'nb_evals': 1,
+    'input_name': 'context',
+    'data_path': '/export/home/dialog_datasets',
+    'load_path': None,
+    'add_name': '',
+    'max_line': None,
+    'overwrite': False,
+    'logging_steps': 500,
+    'save_steps': 1000,
+    'save_total_limit': 1,
+    'domain_act': False,
+    'only_last_turn': False,
+    'error_analysis': False,
+    'not_save_model': False,
+    'nb_shots': -1,
+    'do_embeddings': False,
+    'create_own_vocab': False,
+    'unk_mask': True,
+    'parallel_decode': True,
+    'self_supervised': 'generative',
+    'oracle_domain': False,
+    'more_linear_mapping': False,
+    'gate_supervision_for_dst': False,
+    'sum_token_emb_for_value': False,
+    'nb_neg_sample_rs': 0,
+    'sample_negative_by_kmeans': False,
+    'nb_kmeans': 1000,
+    'bidirect': False,
+    'rnn_type': 'gru',
+    'num_rnn_layers': 1,
+    'zero_init_rnn': False,
+    'do_zeroshot': False,
+    'oos_threshold': False,
+    'ontology_version': '',
+    'dstlm': False,
+    'vizualization': 0
 }
+
 
 # Function to load JSON data
 def load_json_data(file_path):
@@ -102,7 +159,7 @@ train_dataloader = utils_general.get_loader(args, "train", tokenizer, datasets, 
 # dev_dataloader = DataLoader(datasets["dev"], batch_size=batch_size, shuffle=False)
 # test_dataloader = DataLoader(datasets["test"], batch_size=batch_size, shuffle=False)
 unified_meta = metadata
-
+args["unified_meta"] = metadata
 
 ## Training and Testing Loop
 if args["do_train"]:
@@ -110,16 +167,16 @@ if args["do_train"]:
     output_dir_origin = str(args["output_dir"])
     
     ## Setup logger
-    logging.basicConfig(level=logging.DEBUG,
+    lg.basicConfig(level=lg.DEBUG,
                         format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
                         datefmt='%m-%d %H:%M',
                         filename=os.path.join(args["output_dir"], "train.log"),
                         filemode='w')
-    console = logging.StreamHandler()
-    console.setLevel(logging.INFO)
-    formatter = logging.Formatter('%(name)-12s: %(levelname)-8s %(message)s')
+    console = lg.StreamHandler()
+    console.setLevel(lg.INFO)
+    formatter = lg.Formatter('%(name)-12s: %(levelname)-8s %(message)s')
     console.setFormatter(formatter)
-    logging.getLogger('').addHandler(console)
+    lg.getLogger('').addHandler(console)
 
     ## training loop
     for run in range(args["nb_runs"]):
@@ -131,7 +188,7 @@ if args["do_train"]:
             args["rand_seed"] = rand_seed
         args["output_dir"] = os.path.join(output_dir_origin, "run{}".format(run)) 
         os.makedirs(args["output_dir"], exist_ok=True)
-        logging.info("Running Random Seed: {}".format(rand_seed))
+        lg.info("Running Random Seed: {}".format(rand_seed))
         
         ## Loading model
         model = globals()[args['my_model']](args)
@@ -151,14 +208,15 @@ if args["do_train"]:
         
         try:
             for epoch in range(args["epoch"]):
-                logging.info("Epoch:{}".format(epoch+1)) 
+                lg.info("Epoch:{}".format(epoch+1)) 
                 train_loss = 0
                 pbar = tqdm(trn_loader)
                 for i, d in enumerate(pbar):
-                    
+                    print("here")
                     model.train()
                     outputs = model(d)
                     train_loss += outputs["loss"]
+                    print(train_loss)
                     train_step += 1
                     pbar.set_description("Training Loss: {:.4f}".format(train_loss/(i+1)))
 
@@ -201,16 +259,16 @@ if args["do_train"]:
                                     torch.save(model.state_dict(), output_model_file)
                                 else:
                                     torch.save(model.module.state_dict(), output_model_file)
-                                logging.info("[Info] Model saved at epoch {} step {}".format(epoch, train_step))
+                                lg.info("[Info] Model saved at epoch {} step {}".format(epoch, train_step))
                         else:
                             cnt += 1
-                            logging.info("[Info] Early stop count: {}/{}...".format(cnt, args["patience"]))
+                            lg.info("[Info] Early stop count: {}/{}...".format(cnt, args["patience"]))
 
                         if cnt > args["patience"]: 
-                            logging.info("Ran out of patient, early stop...")  
+                            lg.info("Ran out of patient, early stop...")  
                             break
 
-                        logging.info("Trn loss {:.4f}, Dev loss {:.4f}, Dev {} {:.4f}".format(train_loss/(i+1), 
+                        lg.info("Trn loss {:.4f}, Dev loss {:.4f}, Dev {} {:.4f}".format(train_loss/(i+1), 
                                                                                               dev_loss,
                                                                                               args["earlystop"],
                                                                                               dev_acc))
@@ -220,12 +278,14 @@ if args["do_train"]:
                     break 
                     
         except KeyboardInterrupt:
-            logging.info("[Warning] Earlystop by KeyboardInterrupt")
+            lg.info("[Warning] Earlystop by KeyboardInterrupt")
         
         ## Load the best model
         if args["not_save_model"]:
             model.load_state_dict(copy.deepcopy(model_clone.state_dict()))
         else:
+            output_model_file = os.path.join(args["output_dir"], "pytorch_model.bin")
+            os.makedirs(output_dir, exist_ok=True)
             # Start evaluating on the test set
             if torch.cuda.is_available(): 
                 model.load_state_dict(torch.load(output_model_file))
@@ -247,7 +307,7 @@ if args["do_train"]:
             test_loss = test_loss / len(tst_loader)
             results = model.evaluation(preds, labels)
             result_runs.append(results)
-            logging.info("[{}] Test Results: ".format(nb_eval) + str(results))
+            lg.info("[{}] Test Results: ".format(nb_eval) + str(results))
     
     ## Average results over runs
     if args["nb_runs"] > 1:

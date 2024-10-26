@@ -22,16 +22,17 @@ def load_ontologies(ontology_folder):
 
 def extract_slots_from_ontology(ontology):
     """
-    Extract slots for each domain from the ontology dictionary.
+    Extract slots for each domain from the ontology dictionary, filtering by the 'restaurant' prefix.
     """
     ontology_slots = {}
     for domain, items in ontology.items():
         slots = []
         for item in items:
-            prefix = item['prefix']
-            for annotation in item['annotations']:
-                slot = f"{prefix}.{annotation}"
-                slots.append(slot)
+            # Only include slots with the 'restaurant' prefix
+            if item['prefix'] == 'restaurant':
+                for annotation in item['annotations']:
+                    # Use only the annotation name without the prefix
+                    slots.append(annotation)
         ontology_slots[domain] = slots
     return ontology_slots
 
@@ -63,15 +64,17 @@ def transform_data(taskmaster_data, ontology_slots):
     for dialogue in taskmaster_data:
         utterances = dialogue['utterances']
         belief_state = {}
-        dialog_history = []
         domain = dialogue.get('domain', 'default_domain')
         slots = ontology_slots.get(domain, [])
         
+        # Initialize dialogue history as an empty list
+        dialog_history = []
+
         for idx, utterance in enumerate(utterances):
             speaker = utterance['speaker']
             text = utterance['text'].lower().strip()
             segments = utterance.get('segments', [])
-            
+
             # Extract slot-value pairs from segments
             for segment in segments:
                 annotations = segment.get('annotations', [])
@@ -84,15 +87,19 @@ def transform_data(taskmaster_data, ontology_slots):
                     else:
                         # Handle slots not in the ontology
                         continue
-            
-            if speaker == 'USER':
-            #if speaker == 'ASSISTANT':
+
+            # Update the dialogue history with the current system/user turn
+            if speaker == 'ASSISTANT':
+                dialog_history.append(f"SYS: {text}")
+                turn_sys = text
+                turn_usr = ''  # Leave user turn empty for now, will be filled in the next loop
+            elif speaker == 'USER':
+                dialog_history.append(f"USR: {text}")
                 turn_usr = text
-                # Get the previous assistant utterance, if any
-                turn_sys = ''
-                if idx > 0 and utterances[idx - 1]['speaker'] == 'ASSISTANT':
-                    turn_sys = utterances[idx - 1]['text'].lower().strip()
                 
+                # Get the previous system utterance (if any)
+                turn_sys = dialog_history[-2] if len(dialog_history) > 1 else ""
+
                 # Prepare slot_gate and slot_values
                 slot_gate = []
                 slot_values = []
@@ -103,12 +110,14 @@ def transform_data(taskmaster_data, ontology_slots):
                     else:
                         slot_gate.append(0)
                         slot_values.append('none')
-                
+
+                # Prepare the transformed data with dialogue history
                 transformed_turn = {
                     "ID": ID_counter,
                     "turn_id": idx,
-                    "turn_sys": turn_sys,
-                    "turn_usr": turn_usr,
+                    "turn_sys": turn_sys,   # Last system utterance
+                    "turn_usr": turn_usr,   # Current user utterance
+                    "dialog_history": " ".join(dialog_history),  # Concatenated dialogue history
                     "belief": belief_state.copy(),
                     "del_belief": {},  # Include if you have deletions
                     "slot_gate": slot_gate,
@@ -116,23 +125,15 @@ def transform_data(taskmaster_data, ontology_slots):
                     "slots": slots,
                     "domain": domain,
                     "sys_act": "",  # Add if available
-                    # add any other fields if needed here
                 }
                 transformed_data.append(transformed_turn)
                 ID_counter += 1
-                
-                # Update dialog history if needed
-                dialog_history.append(turn_sys)
-                dialog_history.append(turn_usr)
-                
-            elif speaker == 'ASSISTANT':
-                # Update belief state or other tracking if necessary
-                pass
-            else:
-                # Handle any unexpected speaker labels
-                continue
 
+            # Continue building the dialogue history, alternating system/user utterances
+            # Only add USER turns to transformed data, ASSISTANT turns just update dialog history
+            
     return transformed_data
+
 
 # Paths to data and ontology folders
 data_folder = 'taskmaster2_dataset/data'  # Replace with your actual data folder path
@@ -149,6 +150,6 @@ taskmaster_data = load_json_files(data_folder)
 transformed_data = transform_data(taskmaster_data, ontology_slots)
 
 # Save transformed data
-output_file = 'FINALtransformed_data.json'  # Replace with your desired output file path
+output_file = 'reModtransformed_data.json'  # Replace with your desired output file path
 with open(output_file, 'w', encoding='utf-8') as f:
     json.dump(transformed_data, f, indent=2)

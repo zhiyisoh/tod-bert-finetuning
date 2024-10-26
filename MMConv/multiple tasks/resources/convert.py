@@ -27,3 +27,6 @@ def convert_txt_to_json(txt_file, output_file):
 
 # Convert the text file to JSON
 convert_txt_to_json('train.txt', 'train.json')
+convert_txt_to_json('val.txt', 'val.json')
+convert_txt_to_json('test.txt', 'test.json')
+

@@ -2,16 +2,15 @@
   "restaurant_search": [{
     "prefix": "restaurant",
     "annotations": [
-      "name.restaurant", 
-      "location",
-      "sub-location",
-      "type.food",
-      "menu_item", 
-      "type.meal",
-      "rating ",
-      "price_range",
-      "business_hours",
-      "other_description"]
+      "Restaurant_name", 
+      "Location",
+      "Sub_location",
+      "Food_type",
+      "Menu_item", 
+      "Meal_type",
+      "Ratings",
+      "Price_range",
+      "Business_hours"]
   }, {
     "prefix": "restaurant_reservation",
     "annotations": [

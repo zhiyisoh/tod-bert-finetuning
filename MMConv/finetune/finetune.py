@@ -49,7 +49,7 @@ args = {
     'nb_runs': 1,
     'fix_rand_seed': 'store_true',
     'eval_batch_size': 100,
-    'epoch': 50,
+    'epoch': 1,
     'eval_by_step': 4000,
     'model_name_or_path': 'bert-base-uncased',
     'cache_dir': '',
@@ -198,7 +198,7 @@ if args["do_train"]:
         trn_loader = utils_general.get_loader(args, "train", tokenizer, datasets, unified_meta)
         dev_loader = utils_general.get_loader(args, "dev"  , tokenizer, datasets, unified_meta, shuffle=args["task_name"]=="rs")
         tst_loader = utils_general.get_loader(args, "test" , tokenizer, datasets, unified_meta, shuffle=args["task_name"]=="rs")
-        
+        print(trn_loader)
         ## Create TF Writer
         tb_writer = SummaryWriter(comment=args["output_dir"].replace("/", "-").replace(":", "-"))
 
@@ -215,6 +215,7 @@ if args["do_train"]:
                     print("here")
                     model.train()
                     outputs = model(d)
+                    print(outputs)
                     train_loss += outputs["loss"]
                     print(train_loss)
                     train_step += 1

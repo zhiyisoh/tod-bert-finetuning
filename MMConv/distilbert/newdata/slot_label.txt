@@ -1,0 +1,22 @@
+B-music
+B-telephone
+B-venueaddress
+B-venuescore
+B-wi-fi
+B-smoking
+B-restroom
+B-parking
+B-outdoor seating
+I-outdoor seating
+B-reservations
+B-drinks
+B-menus
+B-venueneigh
+B-wheelchair accessible
+I-wheelchair accessible
+B-price
+B-credit cards
+I-credit cards
+B-venuename
+B-dining options
+I-dining options

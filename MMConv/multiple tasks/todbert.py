@@ -13,8 +13,9 @@ import re
 from copy import deepcopy
 from collections import defaultdict
 import random
+import ast
 
-path = "../dataset/"
+path = "C:/Users/Zhiyi/Desktop/NLC/project/tod-bert-finetuning/MMConv/multiple tasks/dataset/"
 with open(path + "dialogues.json") as f:
         dialogues = json.load(f)
         
@@ -81,7 +82,7 @@ slot_opts = load( path +'ontology.json')
 
 slot_name_map = {slot_name.lower(): slot_name for slot_name in slot_opts}
 
-wrong_slots = {'delivery', 'open span'}
+wrong_slots = {'delivery', 'open span', 'img_gts'}
 
 telephone_matcher = re.compile('(65|65 |[+]65|[+]65 )?\d{4} ?\d{4}')
 
@@ -250,18 +251,18 @@ def do_delex(dialogue, turn_idx, role='agent', exclude_slots=set()):
 
 # In[14]:
 
-
-ctx_token = '\n'
+quote = "\""
+ctx_token = ''
 ectx_token = ''
-bst_token = '\n<belief>'
+bst_token = ',\"belief\":'
 ebst_token = ''
-act_token = '\n<sys_act>'
-eact_token = '\n'
+act_token = ',\"sys_act\":'
+eact_token = ''
 
-sys_token = '\n<turn_sys>'
-usr_token = '\n<turn_user>'
-img_token = '<|image|>'
-imgsrc_token = '<|imagesource|>'
+sys_token = '\"turn_sys\":'
+usr_token = '\"turn_usr\":'
+img_token = '(image)'
+imgsrc_token = '(imagesource)'
 
 role2token = {
     'agent': sys_token,
@@ -272,7 +273,13 @@ multi_space_matcher = re.compile('\s{2,}')
 
 all_slot_names = {"drinks", "music", "reservations", "dining options", "venueaddress", "menus", "outdoor seating",
                   "venueneigh", "wheelchair accessible", "smoking", "parking", "venuescore",
-                  "restroom", "venuename", "price", "telephone", "credit cards", "wi-fi", "img_gt"}
+                  "restroom", "venuename", "price", "telephone", "credit cards", "wi-fi"}
+
+# Convert the set to a list
+slot_names_list = list(all_slot_names)
+
+# Get the index of each slot name
+slot_name_indices = {name: index for index, name in enumerate(slot_names_list)}
 
 def clean(text):
     # Remove duplicated spaces
@@ -295,32 +302,62 @@ def make_sample(dialogue,
                 accumulate_all_slots=False,
                 strict_slot_merge=False):
     ret = []
-
+    
     if with_context:
         ret.append(ctx_token)
         ctx = make_context(dialogue, turn_idx, with_images=with_images)
         if ctx:
             ret.append(ctx)
         ret.append(ectx_token)
+        dialogue_history = make_dialogue_history(dialogue, (turn_idx - history_length) if history_length > -1 else 0, turn_idx, with_images=with_images)
+        ret.append(",\"dialog_history\":")
+        ret.append("[")
+        ret.append(dialogue_history)
+        ret.append("]")
 
     if with_belief:
         ret.append(bst_token)
+        del_belief = {}
         if accumulate_all_slots:
             bst = []
+            slot_gate = []
+            slot_values = []
             for i in reversed(range(0, turn_idx)):
-                bst.append(make_bstate(dialogue['dialogue'][i]['bstate'], sort_slots=sort_slots, sort_func=sort_func))
+                bst.append(make_bstate(dialogue['dialogue'][i]['bstate'], sort_slots=sort_slots, sort_func=sort_func)[0])
+                slot_gate = make_bstate(dialogue['dialogue'][i]['bstate'], sort_slots=sort_slots, sort_func=sort_func)[1]
+                slot_values = make_bstate(dialogue['dialogue'][i]['bstate'], sort_slots=sort_slots, sort_func=sort_func)[2]
             bst = merge_bstate(bst, sort_slots=sort_slots, sort_func=sort_func, strict=strict_slot_merge)
         else:
-            bst = make_bstate(dialogue['dialogue'][turn_idx]['bstate'], sort_slots=sort_slots, sort_func=sort_func) if turn_idx < len(dialogue['dialogue']) else ''
+            bst = make_bstate(dialogue['dialogue'][turn_idx]['bstate'], sort_slots=sort_slots, sort_func=sort_func)[0] if turn_idx < len(dialogue['dialogue']) else ''
+            bst = ast.literal_eval("{"+ bst + "}")
+            prev = make_bstate(dialogue['dialogue'][turn_idx - 1]['bstate'], sort_slots=sort_slots, sort_func=sort_func)[0] if turn_idx != 0 else ''
+            prev = ast.literal_eval("{"+ prev + "}")
+            slot_gate = make_bstate(dialogue['dialogue'][turn_idx]['bstate'], sort_slots=sort_slots, sort_func=sort_func)[1] if turn_idx < len(dialogue['dialogue']) else ''
+            slot_values = make_bstate(dialogue['dialogue'][turn_idx]['bstate'], sort_slots=sort_slots, sort_func=sort_func)[2] if turn_idx < len(dialogue['dialogue']) else ''
+            if isinstance(bst, dict) and isinstance(prev, dict):
+                
+                del_belief = {key: value for key, value in bst.items() if key not in prev or prev[key] != value}
+
         if bst:
-            ret.append(bst)
+            ret.append(str(json.dumps(bst)))
+        else: 
+            ret.append("{}")
         ret.append(ebst_token)
+        ret.append(",\"del_belief\":")
+        ret.append(str(json.dumps(del_belief)))
+        ret.append(",\"slot_gate\":")
+        ret.append(str(slot_gate))
+        ret.append(",\"slot_values\":")
+        ret.append(str(json.dumps(slot_values)))
+        ret.append(",\"slots\":")
+        ret.append(str(json.dumps(slot_names_list)))
+        ret.append(",\"usr_act\":")
 
     if with_action:
-        ret.append(act_token)
         act = make_bstate_sysact(dialogue['dialogue'][turn_idx + 1]['agent']['dialog_act'], delex=False, sort_slots=sort_slots, sort_func=sort_func, with_slot_name=with_slot_name, no_repetition=True) if turn_idx < len(dialogue['dialogue']) - 1 else ''
         if act:
-            ret.append(act)
+            ret.append(act_token)
+            ret.append(quote + act + quote)
         ret.append(eact_token)
 
     return ' '.join(ret).strip()
@@ -351,10 +388,10 @@ def merge_bstate(bstates_reversed, sort_slots=True, sort_func=None, strict=False
             merged.sort()
         else:
             merged.sort(key=lambda x: sort_func(x))
-    return '; '.join(merged)
+    return ', '.join(merged)
 
-def make_slot_comps(name, value, delex=False, with_slot_name=True):
-    slot_comps = [name, value]
+def make_slot_comps(name, value, act, delex=False, with_slot_name=True):
+    slot_comps = [name, value, act]
     if delex:
         slot_comps[1] = None
     if not with_slot_name:
@@ -370,19 +407,13 @@ def make_bstate(bstate, with_images=True, delex=False, sort_slots=True, sort_fun
             value = ''
         if name in wrong_slots:
             continue
-        if with_images or name != 'img_gts':
-            if name == 'img_gts':
-                name = 'img_gt'
-                for v in value.split(', '):
-                    all_slots.append(make_slot_comps(name, v, delex=delex, with_slot_name=with_slot_name))
-            else:
-                all_slots.append(make_slot_comps(name, value, delex=delex, with_slot_name=with_slot_name))
+        all_slots.append(make_slot_comps(name, value, act, delex=delex, with_slot_name=with_slot_name))
     if sort_slots:
         if sort_func is None:
             all_slots.sort()
         else:
             all_slots.sort(key=lambda x: sort_func(x))
-    ret = [' : '.join(x) for x in all_slots]
+    ret = [ "{" + f'"slots": [["{x[0]}" , "{x[1]}"]], "act" : "{x[2]}"' + "}" for x in all_slots]
     if no_repetition:
         ret_set = set()
         new_ret = []
@@ -391,7 +422,13 @@ def make_bstate(bstate, with_images=True, delex=False, sort_slots=True, sort_fun
                 ret_set.add(r)
                 new_ret.append(r)
         ret = new_ret
-    return clean('; '.join(ret))
+    slot_gate = [0 for i in range(len(slot_name_indices))]
+    slot_values = ["none" for i in range(len(slot_name_indices))]
+    for i in all_slots:
+        index = slot_name_indices[i[0]]
+        slot_gate[index] = 1
+        slot_values[index] = i[1]
+    return clean(', '.join(ret)), slot_gate, slot_values
 
 def make_bstate_sysact(bstate, with_images=True, delex=False, sort_slots=True, sort_func=None, with_slot_name=True, no_repetition=True):
     all_slots = []
@@ -403,11 +440,11 @@ def make_bstate_sysact(bstate, with_images=True, delex=False, sort_slots=True, s
         if name in ["delivery"]:
             continue
         if with_images or name != 'img_gts':
-            if name == 'img_gts':
-                name = 'img_gt'
-                for v in value.split(', '):
-                    all_slots.append(act)
-            else:
+            # if name == 'img_gts':
+            #     name = 'img_gt'
+            #     for v in value.split(', '):
+            #         all_slots.append(act)
+            # else:
                 all_slots.append(act)
     if sort_slots:
         if sort_func is None:
@@ -423,7 +460,7 @@ def make_bstate_sysact(bstate, with_images=True, delex=False, sort_slots=True, s
                 ret_set.add(r)
                 new_ret.append(r)
         ret = new_ret
-    return clean('; '.join(ret))
+    return clean(', '.join(ret))
 
 def make_context(dialogue, current_turn, reverse=False, roles=('agent', 'user'), with_images=True, delex=False):
     # Start from the current turn only, no previous dialogue
@@ -454,15 +491,16 @@ def make_context(dialogue, current_turn, reverse=False, roles=('agent', 'user'),
                     name, value = extract_slot(slot)
                     if name in wrong_slots:
                         continue
-                    if name == 'img_gts':
-                        images = value
-                        image_sources = ', '.join(dialogue['dialogue'][i][role]['imgs'])
-                        break
+                    # if name == 'img_gts':
+                    #     images = value
+                    #     image_sources = ', '.join(dialogue['dialogue'][i][role]['imgs'])
+                    #     break
             
             if transcript or images:
-                ctx.append(role_token)
+                ctx.append("," + role_token)
                 if transcript:
-                    ctx.append(transcript)
+                    transcript = transcript.replace("\"", '\'')
+                    ctx.append(quote + transcript + quote)
                 if images:
                     ctx.append(img_token)
                     ctx.append(images)
@@ -472,6 +510,34 @@ def make_context(dialogue, current_turn, reverse=False, roles=('agent', 'user'),
                     
     return clean(' '.join(ctx).replace('\n', ' '))
 
+
+def make_dialogue_history(dialogue, lower, upper, reverse=False, roles=('agent', 'user'), with_images=True, delex=False):
+    # Start from the current turn only, no previous dialogue
+    r = range(max(0, lower), min(len(dialogue['dialogue']), upper))
+    if reverse:
+        r = reverse(r)
+    ctx = []
+    for i in r:
+        for role in roles:
+            role_token = role2token[role]
+            if delex:
+                transcript = do_delex(dialogue, i, role=role, exclude_slots={'open span', 'img_gts', 'openspan', 'open psan', 'opne span', 'open open', 'opan span', 'open sapn', 'delivery', 'open span:', 'oprn span', 'openn span', 'open spicy', 'opens span', 'open spam', 'oepn span'})
+            else:
+                transcript = dialogue['dialogue'][i][role]['transcript']
+            images = ''
+            image_sources = ''
+            if with_images:
+                turn_label = dialogue['dialogue'][i][role][turn_label_key.get(role, 'slot-action-mapping')]
+                for slot, act in turn_label.items():
+                    name, value = extract_slot(slot)
+                    if name in wrong_slots:
+                        continue
+            if transcript or images:
+                if transcript:
+                    transcript = transcript.replace("\"", '\'')
+                    ctx.append(quote + transcript + quote)
+
+    return clean(', '.join(ctx).replace('\n', ' '))
 
 # In[15]:
 
@@ -540,15 +606,18 @@ input_formats = {
 output_format = "simpletod"
 
 for split_name, split in splits.items():
-    output = f'resources/{split_name}.{output_format}'
+    output = f'resources/{split_name}.txt'
     prepare_path(output)
     with open(output, 'w+', encoding='utf-8') as f:
         for id_ in split:
             dialogue = dialogues[id_]
-            f.write(f'new dialogue\n')
             for i in range(0, len(dialogue['dialogue'])):
+                f.write('{')
+                f.write(f'\"ID\": {id_},')
+                f.write(f'\"turn_id\":{i}')
                 sample = make_sample(dialogue, i, **input_formats[output_format])
-                f.write(f'{sample}\n')
+                f.write(f'{sample}')
+                f.write('},')
                 
 print('Done!')
 

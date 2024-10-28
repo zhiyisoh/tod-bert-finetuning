@@ -254,13 +254,13 @@ def do_delex(dialogue, turn_idx, role='agent', exclude_slots=set()):
 quote = "\""
 ctx_token = ''
 ectx_token = ''
-bst_token = ',\"belief\":'
+bst_token = ',\"turn_label\":'
 ebst_token = ''
-act_token = ',\"sys_act\":'
+act_token = ',\"system_acts\":'
 eact_token = ''
 
-sys_token = '\"turn_sys\":'
-usr_token = '\"turn_usr\":'
+sys_token = '\"system_transcript\":'
+usr_token = '\"transcript\":'
 img_token = '(image)'
 imgsrc_token = '(imagesource)'
 
@@ -309,11 +309,11 @@ def make_sample(dialogue,
         if ctx:
             ret.append(ctx)
         ret.append(ectx_token)
-        dialogue_history = make_dialogue_history(dialogue, (turn_idx - history_length) if history_length > -1 else 0, turn_idx, with_images=with_images)
-        ret.append(",\"dialog_history\":")
-        ret.append("[")
-        ret.append(dialogue_history)
-        ret.append("]")
+        # dialogue_history = make_dialogue_history(dialogue, (turn_idx - history_length) if history_length > -1 else 0, turn_idx, with_images=with_images)
+        # ret.append(",\"dialog_history\":")
+        # ret.append("[")
+        # ret.append(dialogue_history)
+        # ret.append("]")
 
     if with_belief:
         ret.append(bst_token)
@@ -329,28 +329,21 @@ def make_sample(dialogue,
             bst = merge_bstate(bst, sort_slots=sort_slots, sort_func=sort_func, strict=strict_slot_merge)
         else:
             bst = make_bstate(dialogue['dialogue'][turn_idx]['bstate'], sort_slots=sort_slots, sort_func=sort_func)[0] if turn_idx < len(dialogue['dialogue']) else ''
-            bst = ast.literal_eval("{"+ bst + "}")
             prev = make_bstate(dialogue['dialogue'][turn_idx - 1]['bstate'], sort_slots=sort_slots, sort_func=sort_func)[0] if turn_idx != 0 else ''
-            prev = ast.literal_eval("{"+ prev + "}")
             slot_gate = make_bstate(dialogue['dialogue'][turn_idx]['bstate'], sort_slots=sort_slots, sort_func=sort_func)[1] if turn_idx < len(dialogue['dialogue']) else ''
             slot_values = make_bstate(dialogue['dialogue'][turn_idx]['bstate'], sort_slots=sort_slots, sort_func=sort_func)[2] if turn_idx < len(dialogue['dialogue']) else ''
-            if isinstance(bst, dict) and isinstance(prev, dict):
-                
-                del_belief = {key: value for key, value in bst.items() if key not in prev or prev[key] != value}
 
         if bst:
-            ret.append(str(json.dumps(bst)))
+            ret.append("[")
+            ret.append(bst)
+            ret.append("]")
         else: 
             ret.append("{}")
         ret.append(ebst_token)
-        ret.append(",\"del_belief\":")
-        ret.append(str(json.dumps(del_belief)))
-        ret.append(",\"slot_gate\":")
-        ret.append(str(slot_gate))
-        ret.append(",\"slot_values\":")
-        ret.append(str(json.dumps(slot_values)))
-        ret.append(",\"slots\":")
-        ret.append(str(json.dumps(slot_names_list)))
+        ret.append(",\"belief_state\":")
+        ret.append("[")
+        ret.append(prev)
+        ret.append("]")
 
     if with_action:
         act = make_bstate_sysact(dialogue['dialogue'][turn_idx + 1]['agent']['dialog_act'], delex=False, sort_slots=sort_slots, sort_func=sort_func, with_slot_name=with_slot_name, no_repetition=True) if turn_idx < len(dialogue['dialogue']) - 1 else ''
@@ -389,8 +382,8 @@ def merge_bstate(bstates_reversed, sort_slots=True, sort_func=None, strict=False
             merged.sort(key=lambda x: sort_func(x))
     return ', '.join(merged)
 
-def make_slot_comps(name, value, delex=False, with_slot_name=True):
-    slot_comps = [name, value]
+def make_slot_comps(name, value, act, delex=False, with_slot_name=True):
+    slot_comps = [name, value, act]
     if delex:
         slot_comps[1] = None
     if not with_slot_name:
@@ -403,22 +396,16 @@ def make_bstate(bstate, with_images=True, delex=False, sort_slots=True, sort_fun
         slot = slot.replace('：', ':').replace('；', ':').replace(':', ': ').replace('  ', ' ')
         name, value = extract_slot(slot)
         if value is None:
-            value = ''
+            continue
         if name in wrong_slots:
             continue
-        if with_images or name != 'img_gts':
-            # if name == 'img_gts':
-            #     name = 'img_gt'
-            #     for v in value.split(', '):
-            #         all_slots.append(make_slot_comps(name, v, delex=delex, with_slot_name=with_slot_name))
-            # else:
-                all_slots.append(make_slot_comps(name, value, delex=delex, with_slot_name=with_slot_name))
+        all_slots.append(make_slot_comps(name, value, act, delex=delex, with_slot_name=with_slot_name))
     if sort_slots:
         if sort_func is None:
             all_slots.sort()
         else:
             all_slots.sort(key=lambda x: sort_func(x))
-    ret = [f'"{x[0]}" : "{x[1]}"' for x in all_slots]
+    ret = [ "{" + f'"slots": [["{x[0]}" , "{x[1]}"]], "act" : "{x[2]}"' + "}" for x in all_slots]
     if no_repetition:
         ret_set = set()
         new_ret = []
@@ -618,7 +605,7 @@ for split_name, split in splits.items():
             dialogue = dialogues[id_]
             for i in range(0, len(dialogue['dialogue'])):
                 f.write('{')
-                f.write(f'\"ID\": {id_},')
+                f.write(f'\"dialogue_id\": {id_},')
                 f.write(f'\"turn_id\":{i}')
                 sample = make_sample(dialogue, i, **input_formats[output_format])
                 f.write(f'{sample}')

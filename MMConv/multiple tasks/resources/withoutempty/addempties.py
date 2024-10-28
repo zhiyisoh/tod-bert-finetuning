@@ -1,5 +1,5 @@
 import json
-
+from collections import defaultdict
 def add_keys_to_json(input_file, output_file, extra_keys):
     # Read the JSON content from the input file
     try:
@@ -27,18 +27,29 @@ def add_keys_to_json(input_file, output_file, extra_keys):
         print("Unexpected JSON structure.")
         return
 
-    # Write the updated JSON data to the output file
+    for entry in json_data:
+        if len(entry["turn_label"]) == 0:
+            entry["turn_label"] = []
+
+    new_json = {"dialogues": []}
+    # Grouping data by 'category'
+    grouped_data = defaultdict(list)
+    # Iterate over the data and group by 'category'
+    for item in json_data:
+        category = item['dialogue_id']
+        grouped_data[category].append(item)
+    # Convert to a regular dictionary if needed
+    grouped_data = dict(grouped_data)
+    for dialogue, turns in grouped_data.items():
+        for t in turns:
+            del t["dialogue_id"]
+        new_json["dialogues"].append({"dialogue_id" : dialogue, "turns" : turns})
     with open(output_file, 'w', encoding='utf-8') as json_file:
-        json.dump(json_data, json_file, indent=4)
+        json.dump(new_json, json_file, indent=4)
 
 # Example usage
 extra_keys_to_add = [
-    'ID', 'turn_id', 'domains', 'turn_domain', 'turn_usr', 
-    'turn_sys', 'turn_usr_delex', 'turn_sys_delex', 
-    'belief_state_vec', 'db_pointer', 'dialog_history', 
-    'dialog_history_delex', 'belief', 'del_belief', 
-    'slot_gate', 'slot_values', 'slots', 'sys_act', 
-    'usr_act', 'intent', 'turn_slot'
+    "system_transcript", "transcript", "system_acts"
 ]  # List of keys to add
 add_keys_to_json('train.json', 'train_final.json', extra_keys_to_add)
 add_keys_to_json('test.json', 'test_final.json', extra_keys_to_add)
